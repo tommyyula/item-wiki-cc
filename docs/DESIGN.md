@@ -25,7 +25,7 @@ The SQLite catalog is the source of truth for file identity and state. LanceDB h
 
 - **Phase 0 (done):** scanner, dedup, inventory report, CSV export.
 - **Phase 1:** text extraction for PDF / Office / Markdown, text embeddings, LanceDB, `itemwiki search "..."`.
-- **Phase 2:** `taxonomy.yaml`, planner, review UI (Streamlit), executor with journal and undo.
+- **Phase 2 (done, v1):** a TSV folder mapping stands in for `taxonomy.yaml`, plus the planner (skip rules, dedup, version handling) and a copy-only executor with a CSV journal. Still to do: a review UI, and classification by embeddings or an LLM for unmapped folders.
 - **Phase 3:** images, video and audio.
 
 ## Design notes

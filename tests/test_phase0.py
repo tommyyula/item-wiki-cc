@@ -22,6 +22,8 @@ class FiletypeTests(unittest.TestCase):
                 "Plan_v2_final", "Plan 副本"]
         self.assertEqual({family_key(s) for s in same}, {"plan"})
         self.assertNotEqual(family_key("Plan A"), family_key("Plan B"))
+        self.assertEqual(family_key("ITEM_YMS_DIEV_0709 v2"), family_key("ITEM_YMS_DIEV_0708"))
+        self.assertEqual(family_key("ITEM_YMS_DIEV_0708"), "item yms diev")
 
     def test_archive_dir(self):
         for n in ["Archive", "Achieve", "Archieve", "Archived", "old", "OLD FILES", "Old Version", "旧", "2023 Archive", "backup_2022", "_Archive_OldVersions"]:

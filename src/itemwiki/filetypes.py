@@ -53,12 +53,44 @@ _VERSION_PATTERNS = [
     r"\s*\(\d+\)$",                                   # "(1)" duplicate-download suffix
     r"[\s_\-]*(copy|副本|拷贝)(\s*\d+)?$",
     r"[\s_\-]*(final|最终版?|定稿|终版|draft|草稿|修订版?|更新版?|new|latest|updated?|rev\d*)$",
-    r"[\s_\-]*v(er(sion)?)?[\s_\-.]?\d+(\.\d+)*[a-z]?$",     # v2, V1.3, ver2, version 3
+    r"[\s_\-]*(?<![a-z])v(er(sion)?)?[\s_\-.]?\d+(\.\d+)*[a-z]?$",  # v2, V1.3, ver2 (not "DIEV_0709")
     r"[\s_\-]*(19|20)\d{2}[\-_.]?\d{2}[\-_.]?\d{2}$",   # 20240315 / 2024-03-15
     r"[\s_\-]*\d{6}$",                                  # 240315
+    r"[\s_\-]+\d{4}$",                                   # _0709 (MMDD)
     r"[\s_\-]*(\d{1,2}[\-_.]\d{1,2})$",                 # 3.15 / 03-15
 ]
 _VERSION_RES = [re.compile(p, re.IGNORECASE) for p in _VERSION_PATTERNS]
+
+
+# Strict subset used for auto-skipping: only explicit version / copy markers, never dates
+# (date-suffixed files are usually distinct snapshots, e.g. daily reports).
+_STRICT_RES = [re.compile(p, re.IGNORECASE) for p in [
+    r"\s*\(\d+\)$",
+    r"[\s_\-]*(copy|副本|拷贝)(\s*\d+)?$",
+    r"[\s_\-]*(final|最终版?|定稿|终版|draft|草稿|修订版?|更新版?|latest|updated?)$",
+    r"[\s_\-]*(?<![a-z])v(er(sion)?)?[\s_\-.]?\d+(\.\d+)*[a-z]?$",
+]]
+
+
+def version_key(stem: str) -> str:
+    s = stem.strip()
+    while True:
+        before = s
+        for rx in _STRICT_RES:
+            s = rx.sub("", s).strip()
+        if s == before or not s:
+            break
+    s = s or stem
+    return re.sub(r"[\s_\-]+", " ", s).strip().lower()
+
+
+_VER_NUM_RE = re.compile(r"(?<![a-z])v(?:er(?:sion)?)?[\s_\-.]?(\d+(?:\.\d+)*)", re.IGNORECASE)
+
+
+def version_tuple(stem: str) -> tuple[int, ...] | None:
+    """Last explicit version number in a stem: 'Deck-v3.5.3 (1)' -> (3, 5, 3). None if absent."""
+    m = _VER_NUM_RE.findall(stem)
+    return tuple(int(x) for x in m[-1].split(".")) if m else None
 
 
 def family_key(stem: str) -> str:

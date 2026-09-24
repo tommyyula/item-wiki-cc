@@ -1,0 +1,5 @@
+# source_prefix	dest_prefix|SKIP	FLAG	note
+Customers	Customer
+Customers/01-Acme	Customer/Acme
+Leads	Customer	FLAG	leads merged into Customer
+Temp	SKIP		temporary files

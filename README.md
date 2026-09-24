@@ -20,6 +20,31 @@ Phase 0 never modifies, moves, or deletes your files. It only reads metadata, pl
 | `itemwiki report --out reports/x.md` | Writes a Markdown inventory: top-level folders, kinds, largest files, archive-style folders, duplicates, version families. |
 | `itemwiki export files.csv` | Exports the full file list (UTF-8 with BOM, so Excel opens Chinese names correctly). |
 
+## Phase 2 — plan and copy (copy-only, one batch at a time)
+
+| Command | What it does |
+|---|---|
+| `itemwiki plan --root SRC --mapping map.tsv --dest DST --out-dir DIR --name X` | Gives every file one action: `copy` (with a destination), `skip` (with a reason) or `review`. Writes `X.csv` (full list) and `X.md` (summary). Changes nothing on disk. |
+| `itemwiki apply --root SRC --dest DST --batch <top-folder>` | Dry run: shows what would be copied. |
+| `… apply … --execute --log copy_log.csv [--max-seconds 150]` | Copies the batch and appends each file to the log. Resumable. |
+
+**Mapping file** (TSV): `source_prefix  dest_prefix|SKIP  [FLAG]  [note]`. The longest matching source prefix wins, and the rest of the path is kept under `dest_prefix`. `FLAG` marks a proposed rule that isn't confirmed yet: `apply` holds those files back unless you pass `--include-flagged`. See [examples/mapping.example.tsv](examples/mapping.example.tsv).
+
+**Skip rules, in order:**
+
+1. Empty files.
+2. `SKIP` rules in the mapping.
+3. Files under Archive/Archieve/Achieve/OLD/backup-style folders.
+4. Exact duplicates. One canonical copy is kept, preferring: a confirmed rule, a shallower path, then the newer file.
+5. Older versions in the same folder. A file is skipped only when its version number (v3.5 < v3.5.3) and its date agree that it is older. Date-suffixed files (such as daily reports) are never auto-skipped.
+
+**Executor safety:**
+
+- Copy only; sources are never touched.
+- Never overwrites an existing file.
+- Copies to a `.itemwiki-part` file, verifies size and a head/tail hash, then renames it into place.
+- Every copied and skipped file is written to the CSV log.
+
 ## Quick start
 
 ```bash
