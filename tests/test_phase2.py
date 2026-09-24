@@ -99,6 +99,18 @@ class PlanApplyTests(unittest.TestCase):
         self.assertEqual(p["Customers/02-Beta/daily 20240302.xlsx"]["action"], "copy")
         self.assertEqual(p["Customers/02-Beta/daily 20240301.xlsx"]["reason"], "at-destination (same size)")
 
+    def test_outputs(self):
+        self.plan()
+        out = Path(self.tmp.name) / "out"
+        csv_path, md_path = planner.write_outputs(self.con, self.root, str(out), "p")
+        with open(out / "p_folders.csv", encoding="utf-8-sig") as fh:
+            rows = {(r["source_folder"], r["destination_folder"]): r for r in csv.DictReader(fh)}
+        self.assertIn(("Customers/01-Acme", "Customer/Acme"), rows)
+        self.assertEqual(rows[("Leads/Acme", "Customer/Acme")]["flag"], "FLAG")
+        md = Path(md_path).read_text()
+        self.assertIn("### Customers", md)
+        self.assertIn("Folder-level mapping", md)
+
     def test_collision_rename(self):
         p = self.plan()
         a = p["Customers/01-Acme/quote.xlsx"]["dst_rel"]

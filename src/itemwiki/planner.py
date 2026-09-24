@@ -311,6 +311,62 @@ def write_outputs(con: sqlite3.Connection, root: str, out_dir: str, name: str = 
             L += ["", f"## {title} (top 20 of {len(sk):,}, {_h(sum(r['size'] for r in sk))})", ""]
             L += _tbl(["Skipped file", "Size", "Reason"], [(r["rel_path"], _h(r["size"]), r["reason"]) for r in sk[:20]])
 
+    # Folder-level mapping: what each source folder becomes. Full detail (depth 3) goes to a CSV,
+    # the Markdown shows depth 2 grouped by batch.
+    def folder_map(depth):
+        agg: dict[str, dict] = defaultdict(lambda: {"dst": defaultdict(lambda: [0, 0]), "skip": defaultdict(lambda: [0, 0]),
+                                                     "review": [0, 0]})
+        for r in rows:
+            parts = r["rel_path"].split("/")[:-1]
+            if not parts:
+                continue
+            key = "/".join(parts[:depth])
+            a = agg[key]
+            if r["action"] == "copy":
+                cut = len(parts) - min(len(parts), depth)
+                dparts = r["dst_rel"].split("/")[:-1]
+                dkey = "/".join(dparts[:len(dparts) - cut]) + (" [FLAG]" if r["flag"] else "")
+                a["dst"][dkey][0] += 1; a["dst"][dkey][1] += r["size"]
+            elif r["action"] == "skip":
+                k = _reason_kind(r["reason"])
+                a["skip"][k][0] += 1; a["skip"][k][1] += r["size"]
+            else:
+                a["review"][0] += 1; a["review"][1] += r["size"]
+        return agg
+
+    fcsv = os.path.join(out_dir, f"{name}_folders.csv")
+    with open(fcsv, "w", newline="", encoding="utf-8-sig") as fh:
+        w = csv.writer(fh)
+        w.writerow(["batch", "source_folder", "destination_folder", "flag", "copy_files", "copy_bytes",
+                    "skip_files", "skip_bytes", "skip_reasons"])
+        for src, a in sorted(folder_map(3).items()):
+            sk_n = sum(v[0] for v in a["skip"].values()); sk_b = sum(v[1] for v in a["skip"].values())
+            reasons = "; ".join(f"{k} {v[0]}" for k, v in sorted(a["skip"].items(), key=lambda kv: -kv[1][0]))
+            dsts = sorted(a["dst"].items(), key=lambda kv: -kv[1][1]) or [("", [0, 0])]
+            for i, (d, (n, b)) in enumerate(dsts):
+                w.writerow([src.split("/")[0], src, d.replace(" [FLAG]", ""), "FLAG" if d.endswith("[FLAG]") else "",
+                            n, b, sk_n if i == 0 else "", sk_b if i == 0 else "", reasons if i == 0 else ""])
+
+    L += ["", "## Folder-level mapping (source depth 2)", "",
+          f"Every source subfolder and where it goes. Depth-3 detail: `{name}_folders.csv`.", ""]
+    by_batch: dict[str, list] = defaultdict(list)
+    for src, a in folder_map(2).items():
+        by_batch[src.split("/")[0]].append((src, a))
+    batch_size = {b: sum(sum(v[1] for v in a["dst"].values()) + sum(v[1] for v in a["skip"].values())
+                         for _, a in items) for b, items in by_batch.items()}
+    for b in sorted(by_batch, key=lambda b: -batch_size[b]):
+        L += ["", f"### {b}", ""]
+        trs = []
+        for src, a in sorted(by_batch[b], key=lambda x: x[0].lower()):
+            dsts = sorted(a["dst"].items(), key=lambda kv: -kv[1][1])
+            dtxt = "<br>".join(f"{d} ({v[0]:,})" for d, v in dsts[:4]) + (f"<br>… +{len(dsts) - 4}" if len(dsts) > 4 else "")
+            cn = sum(v[0] for v in a["dst"].values()); cb = sum(v[1] for v in a["dst"].values())
+            sn = sum(v[0] for v in a["skip"].values()); sb = sum(v[1] for v in a["skip"].values())
+            why = ", ".join(f"{k} {v[0]:,}" for k, v in sorted(a["skip"].items(), key=lambda kv: -kv[1][0]))
+            trs.append((src.split("/", 1)[1] if "/" in src else "(files in batch root)", dtxt or "—",
+                        f"{cn:,} / {_h(cb)}" if cn else "—", f"{sn:,} / {_h(sb)}" if sn else "—", why or ""))
+        L += _tbl(["Source folder", "→ Destination (files)", "Copy", "Skip", "Skip reasons"], trs)
+
     md_path = os.path.join(out_dir, f"{name}.md")
     with open(md_path, "w", encoding="utf-8") as fh:
         fh.write("\n".join(L) + "\n")
