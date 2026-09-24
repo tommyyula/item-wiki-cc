@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+build/
+dist/
+.DS_Store
+
+# Catalogs and reports contain real file names from private folders — keep them local.
+data/
+reports/

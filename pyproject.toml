@@ -1,0 +1,21 @@
+[project]
+name = "itemwiki"
+version = "0.1.0"
+description = "Local multimodal file indexer and organizer (scan -> extract -> embed -> index -> plan -> execute)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []  # Phase 0 is stdlib-only
+
+[project.optional-dependencies]
+# Phase 1+ (not used yet)
+index = ["lancedb", "pyarrow", "markitdown"]
+
+[project.scripts]
+itemwiki = "itemwiki.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
